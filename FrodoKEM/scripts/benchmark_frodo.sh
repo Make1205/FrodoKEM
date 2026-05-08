@@ -16,7 +16,8 @@ Options:
   --generations LIST     Comma-separated matrix-A generators (default: AES128,SHAKE128)
   --cc VALUE             C compiler passed to make (default: gcc)
   --use-openssl VALUE    TRUE or FALSE, passed to make (default: TRUE)
-  --out DIR              Output directory for logs and summary CSV (default: benchmark-results/<timestamp>)
+  --out DIR              Output directory for logs, build_features.csv, and summary CSV
+                         (default: benchmark-results/<timestamp>)
   --force-fast           Try FAST even if this CPU does not advertise avx2/aes flags
   --no-clean-final       Do not run make clean after all benchmarks complete
   -h, --help             Show this help
@@ -64,7 +65,9 @@ if [[ -z "$out_dir" ]]; then
 fi
 mkdir -p "$out_dir"
 summary_csv="${out_dir}/summary.csv"
+features_csv="${out_dir}/build_features.csv"
 printf 'generation,variant,param_set,operation,iterations,total_time_s,time_us_mean,time_us_stdev,cycles_mean,cycles_stdev,log_file\n' > "$summary_csv"
+printf 'generation,variant,opt_level,use_openssl,enables_avx2,enables_aes_ni,uses_shake128_4x,uses_keccak4x,aes_backend,build_log\n' > "$features_csv"
 
 IFS=',' read -r -a generation_array <<< "$generations"
 IFS=',' read -r -a variant_array <<< "$variants"
@@ -98,6 +101,54 @@ variant_to_make_args() {
     fast) echo "ARCH=x64 OPT_LEVEL=FAST" ;;
     *) echo "Unknown variant '$1'. Use reference, fast, or fast-generic." >&2; return 2 ;;
   esac
+}
+
+variant_to_opt_level() {
+  case "$1" in
+    reference) echo "REFERENCE" ;;
+    fast-generic) echo "FAST_GENERIC" ;;
+    fast) echo "FAST" ;;
+    *) echo "Unknown variant '$1'. Use reference, fast, or fast-generic." >&2; return 2 ;;
+  esac
+}
+
+record_build_features() {
+  local generation=$1 variant=$2 build_log=$3 rel_log opt_level enables_avx2 enables_aes_ni uses_shake128_4x uses_keccak4x aes_backend
+  rel_log=$(realpath --relative-to="$FRODO_DIR" "$build_log" 2>/dev/null || printf '%s' "$build_log")
+  opt_level=$(variant_to_opt_level "$variant")
+
+  enables_avx2=no
+  enables_aes_ni=no
+  uses_shake128_4x=no
+  uses_keccak4x=no
+  aes_backend=not_applicable
+
+  if [[ "$variant" == "fast" ]]; then
+    enables_avx2=yes
+    enables_aes_ni=yes
+  fi
+
+  if [[ "$generation" == "AES128" ]]; then
+    if [[ "$use_openssl" == "TRUE" ]]; then
+      aes_backend=openssl
+    elif [[ "$variant" == "fast" ]]; then
+      aes_backend=aes_ni
+    else
+      aes_backend=portable_c
+    fi
+  elif [[ "$generation" == "SHAKE128" && "$variant" == "fast" ]]; then
+    uses_shake128_4x=yes
+    uses_keccak4x=yes
+    if ! grep -q 'fips202x4\.c' "$build_log" || ! grep -q 'KeccakP-1600-times4-SIMD256\.c' "$build_log"; then
+      echo "Expected SHAKE128 FAST to build fips202x4.c and KeccakP-1600-times4-SIMD256.c, but the build log did not show both files." >&2
+      return 1
+    fi
+    printf 'Verified SHAKE128 FAST uses shake128_4x/Keccak-times4 objects.\n'
+  fi
+
+  printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' \
+    "$generation" "$variant" "$opt_level" "$use_openssl" "$enables_avx2" "$enables_aes_ni" \
+    "$uses_shake128_4x" "$uses_keccak4x" "$aes_backend" "$rel_log" >> "$features_csv"
 }
 
 extract_summary() {
@@ -153,6 +204,7 @@ for generation in "${generation_array[@]}"; do
     run_make_clean
     # shellcheck disable=SC2086
     make -C "$FRODO_DIR" CC="$cc" GENERATION_A="$generation" USE_OPENSSL="$use_openssl" $make_args tests 2>&1 | tee "$build_log"
+    record_build_features "$generation" "$variant" "$build_log"
 
     for param in "${param_array[@]}"; do
       param=${param//[[:space:]]/}
@@ -171,4 +223,5 @@ if [[ $clean_final -eq 1 ]]; then
 fi
 
 printf '\nSummary CSV: %s\n' "$summary_csv"
+printf 'Build features CSV: %s\n' "$features_csv"
 printf 'Done. Raw build and run logs are in: %s\n' "$out_dir"
