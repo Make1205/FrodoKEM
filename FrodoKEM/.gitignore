@@ -17,3 +17,4 @@ objs/
 .vs/
 *.VC.db
 *.VC.VC.opendb
+benchmark-results/

@@ -97,6 +97,27 @@ $ ./frodo976/PQCtestKAT_kem_shake
 $ ./frodo1344/PQCtestKAT_kem_shake
 ```
 
+
+### One-command benchmarking of reference vs optimized builds
+
+A helper script is provided to rebuild and benchmark multiple implementation variants without manually
+running `make clean`, `make`, and each `test_KEM` executable. From this directory run:
+
+```sh
+$ scripts/benchmark_frodo.sh
+```
+
+By default, the script benchmarks `OPT_LEVEL=REFERENCE` and `OPT_LEVEL=FAST` for FrodoKEM-640,
+FrodoKEM-976, and FrodoKEM-1344 with `GENERATION_A=AES128`. It writes raw logs and a `summary.csv`
+under `benchmark-results/<timestamp>/`. For example, to include the portable optimized build too, run:
+
+```sh
+$ scripts/benchmark_frodo.sh --variants reference,fast-generic,fast
+```
+
+The script checks for CPU `avx2` and `aes` flags before running the `FAST` build. The `FAST` build maps
+to `ARCH=x64 OPT_LEVEL=FAST`; as described above, that build enables AVX2 intrinsics and AES-NI on x64.
+
 ### Additional options
 
 These are all the available options for compilation:
