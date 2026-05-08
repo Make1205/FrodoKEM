@@ -126,6 +126,15 @@ $ scripts/benchmark_frodo.sh --generation SHAKE128
 The script checks for CPU `avx2` and `aes` flags before running the `FAST` build. The `FAST` build maps
 to `ARCH=x64 OPT_LEVEL=FAST`; as described above, that build enables AVX2 intrinsics and AES-NI on x64.
 
+When interpreting AES128 versus SHAKE128 results, AES128 being faster is expected on many x64 machines,
+especially for the `FAST` variant. The AES128 matrix-A path can use hardware-accelerated AES-NI
+(or OpenSSL's AES implementation when `USE_OPENSSL=TRUE`), while the SHAKE128 path uses SHAKE/Keccak
+code and, in the AVX2 build, batches four rows with the 4-way SHAKE128 helper. The faster generator can
+change with CPU, compiler, OpenSSL version, and implementation variant, so compare rows with the same
+`variant`, `param_set`, compiler, and `USE_OPENSSL` setting. Also note that the benchmark reports complete
+KEM operations, so key generation and encapsulation are usually more affected by the matrix-A generator
+than decapsulation.
+
 ### Additional options
 
 These are all the available options for compilation:
