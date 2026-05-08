@@ -97,6 +97,49 @@ $ ./frodo976/PQCtestKAT_kem_shake
 $ ./frodo1344/PQCtestKAT_kem_shake
 ```
 
+
+### One-command benchmarking of reference vs optimized builds
+
+A helper script is provided to rebuild and benchmark multiple implementation variants without manually
+running `make clean`, `make`, and each `test_KEM` executable. From this directory run:
+
+```sh
+$ scripts/benchmark_frodo.sh
+```
+
+By default, the script benchmarks `OPT_LEVEL=REFERENCE` and `OPT_LEVEL=FAST` for FrodoKEM-640,
+FrodoKEM-976, and FrodoKEM-1344 with both matrix-A generators: `GENERATION_A=AES128` and
+`GENERATION_A=SHAKE128`. It writes raw logs, a `summary.csv`, and a `build_features.csv` under
+`benchmark-results/<timestamp>/`. The summary CSV includes a `generation` column so AES128 and
+SHAKE128 runs can be compared without ambiguity, while `build_features.csv` records whether each
+build enabled AVX2/AES-NI and whether SHAKE128 `FAST` used the 4-way SHAKE/Keccak path. For example,
+to include the portable optimized build too, run:
+
+```sh
+$ scripts/benchmark_frodo.sh --variants reference,fast-generic,fast
+```
+
+To benchmark only the SHAKE128-based matrix-A generator, run:
+
+```sh
+$ scripts/benchmark_frodo.sh --generation SHAKE128
+```
+
+The script checks for CPU `avx2` and `aes` flags before running the `FAST` build. The `FAST` build maps
+to `ARCH=x64 OPT_LEVEL=FAST`; as described above, that build enables AVX2 intrinsics and AES-NI on x64.
+
+When interpreting AES128 versus SHAKE128 results, AES128 being faster is expected on many x64 machines,
+especially for the `FAST` variant. The AES128 matrix-A path can use hardware-accelerated AES-NI
+(or OpenSSL's AES implementation when `USE_OPENSSL=TRUE`), while the SHAKE128 path uses SHAKE/Keccak
+code and, in the AVX2 build, batches four rows with the 4-way SHAKE128 helper. The helper is used only
+for `GENERATION_A=SHAKE128` with `OPT_LEVEL=FAST`; reference and `FAST_GENERIC` SHAKE builds use the
+portable one-row SHAKE path. You can confirm this from `build_features.csv` (`uses_shake128_4x=yes`) or
+from the SHAKE128 `FAST` build log, which should compile `fips202x4.c` and
+`KeccakP-1600-times4-SIMD256.c`. The faster generator can change with CPU, compiler, OpenSSL version,
+and implementation variant, so compare rows with the same `variant`, `param_set`, compiler, and
+`USE_OPENSSL` setting. Also note that the benchmark reports complete KEM operations, so key generation
+and encapsulation are usually more affected by the matrix-A generator than decapsulation.
+
 ### Additional options
 
 These are all the available options for compilation:
