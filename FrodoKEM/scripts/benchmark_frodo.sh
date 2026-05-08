@@ -6,14 +6,14 @@ usage() {
 Usage: scripts/benchmark_frodo.sh [options]
 
 Build and benchmark FrodoKEM implementations in one command. By default it tests
-REFERENCE and FAST (x64 AVX2/AES-NI) for FrodoKEM-640/976/1344 using AES128 to
-generate matrix A.
+REFERENCE and FAST (x64 AVX2/AES-NI) for FrodoKEM-640/976/1344 using both
+AES128 and SHAKE128 to generate matrix A.
 
 Options:
   --variants LIST        Comma-separated variants: reference,fast,fast-generic (default: reference,fast)
   --params LIST          Comma-separated parameter sets: 640,976,1344 (default: 640,976,1344)
-  --generation VALUE     AES128 or SHAKE128 for matrix A generation (default: AES128)
-  --generations LIST     Comma-separated matrix-A generators: AES128,SHAKE128
+  --generation VALUE     AES128 or SHAKE128 for matrix A generation
+  --generations LIST     Comma-separated matrix-A generators (default: AES128,SHAKE128)
   --cc VALUE             C compiler passed to make (default: gcc)
   --use-openssl VALUE    TRUE or FALSE, passed to make (default: TRUE)
   --out DIR              Output directory for logs and summary CSV (default: benchmark-results/<timestamp>)
@@ -34,7 +34,7 @@ FRODO_DIR=$(cd -- "${SCRIPT_DIR}/.." && pwd)
 
 variants="reference,fast"
 params="640,976,1344"
-generations="AES128"
+generations="AES128,SHAKE128"
 cc="gcc"
 use_openssl="TRUE"
 out_dir=""

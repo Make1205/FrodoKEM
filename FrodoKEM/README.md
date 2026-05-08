@@ -108,25 +108,19 @@ $ scripts/benchmark_frodo.sh
 ```
 
 By default, the script benchmarks `OPT_LEVEL=REFERENCE` and `OPT_LEVEL=FAST` for FrodoKEM-640,
-FrodoKEM-976, and FrodoKEM-1344 with `GENERATION_A=AES128`; in other words, the default run uses
-AES128 to generate matrix A. It writes raw logs and a `summary.csv` under
-`benchmark-results/<timestamp>/`, and the CSV includes a `generation` column so AES128 and SHAKE128
-runs can be compared without ambiguity. For example, to include the portable optimized build too, run:
+FrodoKEM-976, and FrodoKEM-1344 with both matrix-A generators: `GENERATION_A=AES128` and
+`GENERATION_A=SHAKE128`. It writes raw logs and a `summary.csv` under `benchmark-results/<timestamp>/`,
+and the CSV includes a `generation` column so AES128 and SHAKE128 runs can be compared without
+ambiguity. For example, to include the portable optimized build too, run:
 
 ```sh
 $ scripts/benchmark_frodo.sh --variants reference,fast-generic,fast
 ```
 
-To benchmark the SHAKE128-based matrix-A generator instead, run:
+To benchmark only the SHAKE128-based matrix-A generator, run:
 
 ```sh
 $ scripts/benchmark_frodo.sh --generation SHAKE128
-```
-
-To benchmark both matrix-A generators in one invocation, run:
-
-```sh
-$ scripts/benchmark_frodo.sh --generations AES128,SHAKE128
 ```
 
 The script checks for CPU `avx2` and `aes` flags before running the `FAST` build. The `FAST` build maps
